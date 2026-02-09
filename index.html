@@ -1,44 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Neuron AI</title>
+  <title>Neuron AI (Auto-Train)</title>
   <style>
     body { font-family: monospace; background:#111; color:#0f0; padding:20px; }
-    input { width:80%; background:black; color:#0f0; border:1px solid #0f0; }
-    button { background:black; color:#0f0; border:1px solid #0f0; }
+    input { width:70%; background:black; color:#0f0; border:1px solid #0f0; }
+    button { background:black; color:#0f0; border:1px solid #0f0; margin-left:5px; }
   </style>
 </head>
 <body>
-<h2>Neuron AI (Real NN)</h2>
+<h2>Neuron AI (Real NN, Auto-Train)</h2>
 <div id="chat"></div>
 <input id="input" placeholder="type here">
 <button onclick="send()">Send</button>
+<button onclick="trainAI()">Train AI</button>
+<div id="status"></div>
 
 <script>
-// TRAINING DATA (you can add more)
+// Tiny dataset
 const data = [
-  ["hello", "print('Hello')"],
-  ["hi", "print('Hello')"],
-  ["loop", "for i in range(5): print(i)"],
-  ["if", "if x == 3: print('yes')"],
-  ["function", "def myFunc(): pass"]
+  ["hello","print('Hello')"],
+  ["hi","print('Hello')"],
+  ["yo","print('Hello')"],
+  ["loop","for i in range(5): print(i)"],
+  ["if","if x == 3: print('yes')"],
+  ["function","def myFunc(): pass"]
 ];
 
-// build character vocab
+// char vocab
 let chars = new Set();
-data.forEach(d => d[0].split("").forEach(c => chars.add(c)));
+data.forEach(d => d[0].split("").forEach(c=>chars.add(c)));
 chars = Array.from(chars);
 const map = Object.fromEntries(chars.map((c,i)=>[c,i]));
 
 function encode(text){
   let x = new Array(chars.length).fill(0);
   for(let c of text){
-    if(map[c] !== undefined) x[map[c]]++;
+    if(map[c]!==undefined) x[map[c]]++;
   }
   return x;
 }
 
-// neural net sizes
+// NN sizes
 let inputSize = chars.length;
 let hiddenSize = 32;
 let outputSize = data.length;
@@ -64,51 +67,55 @@ function forward(x){
   return {h, out: softmax(o)};
 }
 
-// TRAIN
-for(let epoch=0; epoch<3000; epoch++){
-  for(let i=0;i<data.length;i++){
-    let x = encode(data[i][0]);
-    let y = new Array(outputSize).fill(0); y[i]=1;
-
-    let {h,out} = forward(x);
+// auto-train function
+function trainAI(){
+  let status = document.getElementById("status");
+  status.innerText = "Training AI...";
+  setTimeout(()=>{
+    let epochs = 3000; // you can increase for smarter AI
     let lr = 0.01;
+    for(let epoch=0; epoch<epochs; epoch++){
+      for(let i=0;i<data.length;i++){
+        let x = encode(data[i][0]);
+        let y = new Array(outputSize).fill(0); y[i]=1;
+        let {h,out} = forward(x);
 
-    // output error
-    let err = out.map((v,j)=>v-y[j]);
+        // output error
+        let err = out.map((v,j)=>v-y[j]);
 
-    // update w2
-    for(let j=0;j<hiddenSize;j++)
-      for(let k=0;k<outputSize;k++)
-        w2[j][k] -= lr * err[k] * h[j];
+        // update w2
+        for(let j=0;j<hiddenSize;j++)
+          for(let k=0;k<outputSize;k++)
+            w2[j][k] -= lr * err[k] * h[j];
+        for(let k=0;k<outputSize;k++) b2[k] -= lr * err[k];
 
-    for(let k=0;k<outputSize;k++)
-      b2[k] -= lr * err[k];
+        // hidden error
+        let hiddenErr = new Array(hiddenSize).fill(0);
+        for(let j=0;j<hiddenSize;j++)
+          for(let k=0;k<outputSize;k++)
+            hiddenErr[j] += err[k]*w2[j][k];
 
-    // hidden error
-    let hiddenErr = new Array(hiddenSize).fill(0);
-    for(let j=0;j<hiddenSize;j++)
-      for(let k=0;k<outputSize;k++)
-        hiddenErr[j] += err[k]*w2[j][k];
-
-    // update w1
-    for(let j=0;j<inputSize;j++)
-      for(let k=0;k<hiddenSize;k++)
-        w1[j][k] -= lr * hiddenErr[k] * x[j];
-
-    for(let k=0;k<hiddenSize;k++)
-      b1[k] -= lr * hiddenErr[k];
-  }
+        // update w1
+        for(let j=0;j<inputSize;j++)
+          for(let k=0;k<hiddenSize;k++)
+            w1[j][k] -= lr * hiddenErr[k] * x[j];
+        for(let k=0;k<hiddenSize;k++) b1[k] -= lr * hiddenErr[k];
+      }
+    }
+    status.innerText = "Training complete!";
+  }, 10);
 }
 
 function send(){
-  let msg = input.value;
+  let msg = document.getElementById("input").value;
+  if(msg==="") return;
   let x = encode(msg);
   let {out} = forward(x);
   let i = out.indexOf(Math.max(...out));
 
-  chat.innerHTML += "<div>You: "+msg+"</div>";
-  chat.innerHTML += "<div>AI: "+data[i][1]+"</div>";
-  input.value="";
+  document.getElementById("chat").innerHTML += "<div>You: "+msg+"</div>";
+  document.getElementById("chat").innerHTML += "<div>AI: "+data[i][1]+"</div>";
+  document.getElementById("input").value="";
 }
 </script>
 </body>
