@@ -9,38 +9,41 @@
   </style>
 </head>
 <body>
-<h2>Neuron AI (No API)</h2>
+<h2>Neuron AI (Real NN)</h2>
 <div id="chat"></div>
 <input id="input" placeholder="type here">
 <button onclick="send()">Send</button>
 
 <script>
+// TRAINING DATA (you can add more)
 const data = [
-  ["hello", "print('Hello world')"],
+  ["hello", "print('Hello')"],
+  ["hi", "print('Hello')"],
   ["loop", "for i in range(5): print(i)"],
   ["if", "if x == 3: print('yes')"],
   ["function", "def myFunc(): pass"]
 ];
 
-// build vocab
-let vocab = new Set();
-data.forEach(d => d[0].split("").forEach(c => vocab.add(c)));
-vocab = Array.from(vocab);
-const map = Object.fromEntries(vocab.map((c,i)=>[c,i]));
+// build character vocab
+let chars = new Set();
+data.forEach(d => d[0].split("").forEach(c => chars.add(c)));
+chars = Array.from(chars);
+const map = Object.fromEntries(chars.map((c,i)=>[c,i]));
 
 function encode(text){
-  let x = new Array(vocab.length).fill(0);
+  let x = new Array(chars.length).fill(0);
   for(let c of text){
     if(map[c] !== undefined) x[map[c]]++;
   }
   return x;
 }
 
-// neural net
-let inputSize = vocab.length;
-let hiddenSize = 16;
+// neural net sizes
+let inputSize = chars.length;
+let hiddenSize = 32;
 let outputSize = data.length;
 
+// weights
 let w1 = Array.from({length:inputSize},()=>Array.from({length:hiddenSize},()=>Math.random()*0.01));
 let b1 = new Array(hiddenSize).fill(0);
 let w2 = Array.from({length:hiddenSize},()=>Array.from({length:outputSize},()=>Math.random()*0.01));
@@ -50,40 +53,59 @@ function relu(x){ return x.map(v=>Math.max(0,v)); }
 function softmax(x){
   let m = Math.max(...x);
   let ex = x.map(v=>Math.exp(v-m));
-  let sum = ex.reduce((a,b)=>a+b,0);
-  return ex.map(v=>v/sum);
+  let s = ex.reduce((a,b)=>a+b,0);
+  return ex.map(v=>v/s);
 }
 
 function forward(x){
   let h = b1.map((v,j)=>v + x.reduce((s,xi,i)=>s+xi*w1[i][j],0));
   h = relu(h);
   let o = b2.map((v,j)=>v + h.reduce((s,hi,i)=>s+hi*w2[i][j],0));
-  return softmax(o);
+  return {h, out: softmax(o)};
 }
 
-// train
-for(let e=0;e<2000;e++){
+// TRAIN
+for(let epoch=0; epoch<3000; epoch++){
   for(let i=0;i<data.length;i++){
     let x = encode(data[i][0]);
-    let y = Array(outputSize).fill(0); y[i]=1;
-    let out = forward(x);
+    let y = new Array(outputSize).fill(0); y[i]=1;
+
+    let {h,out} = forward(x);
+    let lr = 0.01;
+
+    // output error
     let err = out.map((v,j)=>v-y[j]);
 
+    // update w2
     for(let j=0;j<hiddenSize;j++)
       for(let k=0;k<outputSize;k++)
-        w2[j][k] -= 0.01*err[k];
+        w2[j][k] -= lr * err[k] * h[j];
 
+    for(let k=0;k<outputSize;k++)
+      b2[k] -= lr * err[k];
+
+    // hidden error
+    let hiddenErr = new Array(hiddenSize).fill(0);
+    for(let j=0;j<hiddenSize;j++)
+      for(let k=0;k<outputSize;k++)
+        hiddenErr[j] += err[k]*w2[j][k];
+
+    // update w1
     for(let j=0;j<inputSize;j++)
       for(let k=0;k<hiddenSize;k++)
-        w1[j][k] -= 0.01*err.reduce((s,e,i)=>s+e*w2[k][i],0);
+        w1[j][k] -= lr * hiddenErr[k] * x[j];
+
+    for(let k=0;k<hiddenSize;k++)
+      b1[k] -= lr * hiddenErr[k];
   }
 }
 
 function send(){
   let msg = input.value;
   let x = encode(msg);
-  let out = forward(x);
+  let {out} = forward(x);
   let i = out.indexOf(Math.max(...out));
+
   chat.innerHTML += "<div>You: "+msg+"</div>";
   chat.innerHTML += "<div>AI: "+data[i][1]+"</div>";
   input.value="";
