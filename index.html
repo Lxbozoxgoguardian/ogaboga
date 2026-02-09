@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Neuron AI (Auto-Train)</title>
+  <title>Neuron Chatbot</title>
   <style>
     body { font-family: monospace; background:#111; color:#0f0; padding:20px; }
     input { width:70%; background:black; color:#0f0; border:1px solid #0f0; }
@@ -9,7 +9,7 @@
   </style>
 </head>
 <body>
-<h2>Neuron AI (Real NN, Auto-Train)</h2>
+<h2>Neuron Chatbot (Real NN)</h2>
 <div id="chat"></div>
 <input id="input" placeholder="type here">
 <button onclick="send()">Send</button>
@@ -17,17 +17,25 @@
 <div id="status"></div>
 
 <script>
-// Tiny dataset
+// Conversational dataset (plain text)
 const data = [
-  ["hello","print('Hello')"],
-  ["hi","print('Hello')"],
-  ["yo","print('Hello')"],
-  ["loop","for i in range(5): print(i)"],
-  ["if","if x == 3: print('yes')"],
-  ["function","def myFunc(): pass"]
+  ["hello","Hello!"],
+  ["hi","Hi there!"],
+  ["how are you","I'm doing well, thanks!"],
+  ["what's up","Not much, you?"],
+  ["yo","Hey!"],
+  ["bye","Goodbye!"],
+  ["see you","See you later!"],
+  ["thanks","You're welcome!"],
+  ["thank you","Anytime!"],
+  ["how old are you","I am a neural network, I don't age."],
+  ["who are you","I'm a chatbot powered by neurons!"],
+  ["help","Sure! What do you need?"],
+  ["yes","Yes!"],
+  ["no","No!"]
 ];
 
-// char vocab
+// Build character vocab
 let chars = new Set();
 data.forEach(d => d[0].split("").forEach(c=>chars.add(c)));
 chars = Array.from(chars);
@@ -35,18 +43,18 @@ const map = Object.fromEntries(chars.map((c,i)=>[c,i]));
 
 function encode(text){
   let x = new Array(chars.length).fill(0);
-  for(let c of text){
+  for(let c of text.toLowerCase()){
     if(map[c]!==undefined) x[map[c]]++;
   }
   return x;
 }
 
-// NN sizes
+// Neural net sizes
 let inputSize = chars.length;
-let hiddenSize = 32;
+let hiddenSize = 128; // More neurons
 let outputSize = data.length;
 
-// weights
+// Weights
 let w1 = Array.from({length:inputSize},()=>Array.from({length:hiddenSize},()=>Math.random()*0.01));
 let b1 = new Array(hiddenSize).fill(0);
 let w2 = Array.from({length:hiddenSize},()=>Array.from({length:outputSize},()=>Math.random()*0.01));
@@ -67,12 +75,12 @@ function forward(x){
   return {h, out: softmax(o)};
 }
 
-// auto-train function
+// Auto-train function
 function trainAI(){
   let status = document.getElementById("status");
   status.innerText = "Training AI...";
   setTimeout(()=>{
-    let epochs = 3000; // you can increase for smarter AI
+    let epochs = 5000; // More epochs for better learning
     let lr = 0.01;
     for(let epoch=0; epoch<epochs; epoch++){
       for(let i=0;i<data.length;i++){
