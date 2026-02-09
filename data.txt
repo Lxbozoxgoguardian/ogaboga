@@ -1,0 +1,4 @@
+hello => print("Hello")
+loop => for i in range(5): print(i)
+if => if x == 3: print("yes")
+function => def myFunc(): pass
